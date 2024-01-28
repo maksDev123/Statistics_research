@@ -21,4 +21,4 @@ Our goal is to test what factors and its combination influence on quality of sle
 ***Dependency of data***:
 
 * Null hypothesis - quality of the sleep does not depend on its duration and start of sleep.
-*Alternative hypothesis -quality of the sleep depends on its duration and start of sleep.
+* Alternative hypothesis -quality of the sleep depends on its duration and start of sleep.
