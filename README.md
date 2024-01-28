@@ -14,9 +14,9 @@ Columns:
 Our goal is to test what factors and its combination influence on quality of sleep.(start of sleep and duration, sleeping notes, just duration of sleep)
 
 Distribution of the data:
-* Null Hypothesis * - duration of sleep doesn`t follow normal distribution.
-Alternative hypothesis - duration of sleep follows normal distribution.
+** Null Hypothesis ** - duration of sleep doesn`t follow normal distribution.
+** Alternative hypothesis ** - duration of sleep follows normal distribution.
 
-Dependency of data:
-Null hypothesis - quality of the sleep does not depend on its duration and start of sleep.
-Alternative hypothesis -quality of the sleep depends on its duration and start of sleep.
+** Dependency of data **:
+** Null hypothesis ** - quality of the sleep does not depend on its duration and start of sleep.
+** Alternative hypothesis ** -quality of the sleep depends on its duration and start of sleep.
