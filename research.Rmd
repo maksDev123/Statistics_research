@@ -1,0 +1,178 @@
+# Sleep quality testing
+
+```{r}
+library(ggplot2)
+library(scales)
+library(MASS)
+library(gridExtra)
+```
+
+```{r}
+
+file_path <- "./archive/sleepdata.csv"
+
+data <- read.csv(file_path,  sep = ";")
+
+dataframe = data.frame(data)
+
+View(dataframe)
+```
+
+### Clean data
+
+```{r}
+dataframe$Sleep.quality = substr(dataframe$Sleep.quality,1,nchar(dataframe$Sleep.quality)-1)
+
+dataframe$Sleep.quality <- as.numeric(dataframe$Sleep.quality)
+dataframe$Time.in.bed <- as.POSIXct(dataframe$Time.in.bed, format = "%H:%M")
+```
+
+```{r}
+ggplot(dataframe, aes(x = Sleep.quality)) +
+  geom_density(fill = "skyblue", color = "black", alpha = 0.7) +
+  labs(title = "PDF for Sleep quality", x = "Sleep quality", y = "Density") +
+  theme_minimal()
+
+
+```
+
+```{r}
+
+
+good_sleep <- dataframe$Time.in.bed[dataframe$Sleep.quality >= 75]
+mediocre_sleep <- dataframe$Time.in.bed[dataframe$Sleep.quality >= 40 & dataframe$Sleep.quality <= 75]
+bad_sleep <- dataframe$Time.in.bed[dataframe$Sleep.quality < 40]
+
+
+df <- data.frame(value = c(bad_sleep, mediocre_sleep, good_sleep),
+                 group = rep(c("Bad sleep", "Mediocre sleep", "Good sleep"), times = c(32, 368, 518)))
+
+
+
+
+ggplot(df, aes(x = value, fill = group)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Density Plot", x = "Value", y = "Density") +
+  scale_fill_manual(values = c("blue", "red", "green"))
+
+```
+
+```{r}
+buffer <- dataframe$Wake.up
+buffer <- Filter(function(x) x != "", buffer)
+wake_up_counts <- table(buffer)
+
+barplot(wake_up_counts, main = "Wake-up Emotions Counts", xlab = "Emotions", ylab = "Count")
+wake_up_counts
+```
+
+## Testing Distribution of Sleep Duration
+
+```{r}
+dataframe$Time.in.bed <- as.numeric(as.POSIXct(dataframe$Time.in.bed))
+mean <- mean(dataframe$Time.in.bed)
+sd <- sd(dataframe$Time.in.bed)
+
+k_s_test_data <- (dataframe$Time.in.bed - mean) / sd
+```
+
+```         
+```
+
+```{r}
+# shapiro.test(k_s_test_data)
+```
+
+```{r}
+ssd <- function(params, data) {
+  mean_val <- params[1]
+  sd_val <- params[2]
+  predicted_cdf <- pnorm(data, mean = mean_val, sd = sd_val)
+  observed_cdf <- ecdf(data)(data)
+  sum((observed_cdf - predicted_cdf)^2)
+}
+
+initial_params <- c(mean = mean(k_s_test_data), sd = sd(k_s_test_data))
+optimal_params <- optim(par = initial_params, fn = ssd, data = k_s_test_data)
+
+optimal_mean <- optimal_params$par[1]
+optimal_sd <- optimal_params$par[2]
+
+plot(ecdf(k_s_test_data), xlab = "Value", ylab = "Cumulative Probability", main = "Empirical CDF")
+
+curve(pnorm(x, mean =optimal_mean,  sd = optimal_sd), 
+      col = "blue", lwd = 2, add = TRUE)
+
+legend("bottomright", legend = c("Empirical CDF", "Fitted Normal CDF"), 
+       col = c("black", "blue"), lty = c(1, 1), lwd = c(2, 2))
+```
+
+```{r}
+plot(density(k_s_test_data), type = "l", xlab = "Index", ylab = "DateTime")
+curve(dnorm(x, mean = optimal_mean, sd = optimal_sd), add = TRUE, col = "red")
+```
+
+```{r}
+ks.test(k_s_test_data, rnorm(100000, mean = optimal_mean, sd = optimal_sd))
+```
+
+So neither Kolmogorov Smirnov test nor Shapiro--Wilk test gave us p-value less that 0.05 so we can make conclusion that sleep duration does not follow normal distribution.
+
+## Test Hypothesis about dependency of feature on sleep quality
+
+```{r}
+dataframe$Time.in.bed <- as.POSIXlt(dataframe$Time.in.bed, format = "%H:%M")
+
+plot(dataframe$Time.in.bed, dataframe$Sleep.quality, col = "blue", xlab = "Date", ylab = "Time in Bed", main = "Time in Bed Over Time")
+```
+
+```{r}
+dataframe$Minutes.in.bed <- as.numeric(format(as.POSIXlt(dataframe$Time.in.bed, format = "%H:%M"), "%H")) * 60 +
+                     as.numeric(format(as.POSIXlt(dataframe$Time.in.bed, format = "%H:%M"), "%M"))
+dataframe <- dataframe[order(dataframe$Minutes.in.bed),]
+# Sort the dataframe by Minutes.in.bed
+model <- lm(dataframe$Sleep.quality ~ poly(dataframe$Minutes.in.bed, degree = 2) + dataframe$Minutes.in.bed, data = df)
+
+plot(dataframe$Minutes.in.bed, dataframe$Sleep.quality, pch = 16, col = "blue", xlab = "Minutes in Bed", ylab = "Sleep quality", main = "Linear Model: Sleep quality over sleep duration")
+sorted_minutes <- sort(dataframe$Minutes.in.bed);
+lines(dataframe$Minutes.in.bed, predict(model), col = "red", lw = 2)
+```
+
+```{r}
+summary(model)
+```
+
+```{r}
+```
+
+```{r}
+dataframe$start_sleep_minutes <- as.numeric(format(as.POSIXlt(dataframe$Start, format = "%Y-%m-%d %H:%M:"), "%H")) * 60 +
+                     as.numeric(format(as.POSIXlt(dataframe$Start, format = "%Y-%m-%d %H:%M:"), "%M"))
+dataframe$start_sleep_minutes <- ifelse(dataframe$start_sleep_minutes >= 1200, dataframe$start_sleep_minutes - 1200, dataframe$start_sleep_minutes + 240)
+
+
+plot(dataframe$start_sleep_minutes, dataframe$Sleep.quality, col = "blue", xlab = "Date", ylab = "Time in Bed", main = "Time in Bed Over Time")
+```
+
+```{r}
+some_threshold = 40
+dataframe$Sleep.binary <- ifelse(dataframe$Sleep.quality >= some_threshold, 1, 0)
+
+logistic_model <- glm(Sleep.binary ~ start_sleep_minutes, data = dataframe, family = binomial(link = "logit"))
+
+summary(logistic_model)
+
+plot(dataframe$start_sleep_minutes, dataframe$Sleep.binary, col = "blue", xlab = "Start Sleep Minutes", ylab = "Sleep Quality (Binary)", main = "Logistic Regression: Sleep Quality Prediction")
+curve(predict(logistic_model, type = "response", newdata = data.frame(start_sleep_minutes = x)), col = "red", lw = 2, add = TRUE)
+abline(h = 0.5, col = "green", lty = 2)
+```
+
+$$ e−0.015x+6.9=0.5 \\
+
+−0.015x+6.9=ln⁡(0.5)\\
+
+x≈506 $$
+
+```{r}
+
+```
