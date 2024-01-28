@@ -1,4 +1,4 @@
-# p-s-research-project
+# Statistics research on Sleep Quality
 Our dataset:
 Sleep Dataset
 Our dataset is raw data from the Sleep Cycle iOS app from Northcube collected between 2014-2018. It describes the duration of sleep quality, mood after. In general we have around 900 samples.
